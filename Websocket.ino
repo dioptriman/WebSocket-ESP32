@@ -173,9 +173,15 @@ void loop() {
   doorState = digitalRead(DOOR_SENSOR_PIN);
 
   if((pirState == LOW) && (doorState == HIGH)){
-    digitalWrite(RELAY_PIN, HIGH);
+    relayState = HIGH;
+    digitalWrite(RELAY_PIN, relayState);
+    String relayUpdate = "{\"label\":\"relayStatus\",\"value\":\"" + String(relayState ? "RELAY ON" : "RELAY OFF") + "\"}";
+    webSocket.textAll(relayUpdate);
   } else if((pirState == HIGH) && (doorState == LOW)){
-    digitalWrite(RELAY_PIN, LOW);
+    relayState = LOW;
+    digitalWrite(RELAY_PIN, relayState);
+    String relayUpdate = "{\"label\":\"relayStatus\",\"value\":\"" + String(relayState ? "RELAY ON" : "RELAY OFF") + "\"}";
+    webSocket.textAll(relayUpdate);
   }
 
 
