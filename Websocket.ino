@@ -32,6 +32,15 @@ int doorState = LOW;
 int countTimeWas = millis();
 long countVal = 0;
 
+//Counter for people
+int count = 0;
+
+//Sensor Tracker
+bool pirDetected = false;
+bool doorOpened = false;
+
+
+
 //Websocket Handler
 void handleWebSocketEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len){
   switch(type){
@@ -91,6 +100,9 @@ void handleRoot(AsyncWebServerRequest* request){
         <h2>Sensor Information</h2>
         <p>Sensor PIR Status : <span id='pirData'></span></p>
         <p>Sensor Door Status : <span id='doorData'></span></p>
+        <hr>
+        <h2>People Inside</h2>
+        <p>Total People : <span id='peopleData'></span></p>
         <p><span id='message'></span></p>
         <br clear='all'>
 
@@ -113,6 +125,8 @@ void handleRoot(AsyncWebServerRequest* request){
                 document.getElementById('pirData').innerHTML = data.value;
               } else if(data.label = 'doorData'){
                 document.getElementById('doorData').innerHTML = data.value;
+              } else if(data.label = 'peopleData'){
+                document.getElementById('peopleData').innerHTML = data.value;
               }
             };
 
@@ -172,16 +186,55 @@ void loop() {
   pirState = digitalRead(PIR_SENSOR_PIN);
   doorState = digitalRead(DOOR_SENSOR_PIN);
 
-  if((pirState == LOW) && (doorState == HIGH)){
-    relayState = HIGH;
-    digitalWrite(RELAY_PIN, relayState);
-    String relayUpdate = "{\"label\":\"relayStatus\",\"value\":\"" + String(relayState ? "RELAY ON" : "RELAY OFF") + "\"}";
-    webSocket.textAll(relayUpdate);
-  } else if((pirState == HIGH) && (doorState == LOW)){
-    relayState = LOW;
-    digitalWrite(RELAY_PIN, relayState);
-    String relayUpdate = "{\"label\":\"relayStatus\",\"value\":\"" + String(relayState ? "RELAY ON" : "RELAY OFF") + "\"}";
-    webSocket.textAll(relayUpdate);
+  if(pirState == HIGH){
+    pirDetected = true;
+    Serial.println("Motion detected");
+  } else {
+    pirDetected = false;
+  }
+
+  // Check if door is opened
+  if (doorState == LOW && pirDetected) {
+    // If door is opened and PIR sensor detects motion, increment count
+    count++;
+    updateRelay();
+    delay(1000); // Wait for 1 second to avoid multiple counts for the same motion
+    // Wait until the door is closed again
+    while (doorState == LOW) {
+      delay(100);
+    }
+    pirDetected = false; // Reset PIR sensor detection flag
+  }
+
+  // Check if door is opened before PIR sensor detects motion
+  if (doorState == LOW && !pirDetected && !doorOpened) {
+    doorOpened = true;
+    // Wait until the door is closed
+    while (doorState == LOW) {
+      delay(100);
+    }
+  }
+
+   // Check if PIR sensor detects motion before the door is opened
+  if (pirDetected && !doorOpened) {
+    // If PIR sensor detects motion before the door is opened, increment count
+    count++;
+    updateRelay();
+    delay(1000); // Wait for 1 second to avoid multiple counts for the same motion
+    pirDetected = false; // Reset PIR sensor detection flag
+    String peopleUpdate = "{\"label\":\"peopleData\",\"value\":\"" + String(count) + "}";
+    webSocket.textAll(peopleUpdate);
+  }
+
+   // Check if door is closed after it has been opened
+  if (doorState == HIGH && doorOpened) {
+    doorOpened = false;
+    if (count > 0) {
+      count--; // Decrement count when someone exits the room
+      updateRelay(); // Update relay state
+      String peopleUpdate = "{\"label\":\"peopleData\",\"value\":\"" + String(count) + "}";
+      webSocket.textAll(peopleUpdate);
+    }
   }
 
 
@@ -196,3 +249,27 @@ void loop() {
   }
 
 }
+
+void updateRelay() {
+  // Update relay state based on count
+  if (count > 0) {
+    // If count is greater than 0, turn on the relay
+    digitalWrite(RELAY_PIN, HIGH);
+    relayState = true;
+    Serial.println("Relay turned ON");
+    String relayUpdate = "{\"label\":\"relayStatus\",\"value\":\"" + String(relayState ? "RELAY ON" : "RELAY OFF") + "\"}";
+    webSocket.textAll(relayUpdate);
+  } else {
+    // If count is 0, turn off the relay
+    digitalWrite(RELAY_PIN, LOW);
+    relayState = false;
+    Serial.println("Relay turned OFF");
+    String relayUpdate = "{\"label\":\"relayStatus\",\"value\":\"" + String(relayState ? "RELAY ON" : "RELAY OFF") + "\"}";
+    webSocket.textAll(relayUpdate);
+  }
+  
+  // Print the number of people inside
+  Serial.print("People inside: ");
+  Serial.println(count);
+}
+
