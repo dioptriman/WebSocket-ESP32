@@ -10,10 +10,10 @@ const char* password = "bigmacsatu";
 const int RELAY_PIN = 32;
 
 //PIR Sensor
-const int PIR_SENSOR_PIN = 16; 
+const int PIR_SENSOR_PIN = 35; 
 
 //Door Sensor
-const int DOOR_SENSOR_PIN = 18;
+const int DOOR_SENSOR_PIN = 34;
 
 //Websocket Properties
 AsyncWebServer server(80);
