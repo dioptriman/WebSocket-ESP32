@@ -3,17 +3,17 @@
 #include <ESPAsyncWebServer.h>
 
 //WiFi Configuration
-const char* ssid = "Andika";
-const char* password = "30032003";
+const char* ssid = "YOUR_SSID";
+const char* password = "YOUR_PASSWORD";
 
 //Relay Pin
-const int RELAY_PIN = 36;
+const int RELAY_PIN = 32;
 
 //PIR Sensor
-const int PIR_SENSOR_PIN = 37; 
+const int PIR_SENSOR_PIN = 16; 
 
 //Door Sensor
-const int DOOR_SENSOR_PIN = 38;
+const int DOOR_SENSOR_PIN = 18;
 
 //Websocket Properties
 AsyncWebServer server(80);
