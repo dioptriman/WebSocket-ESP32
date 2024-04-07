@@ -7,13 +7,13 @@ const char* ssid = "YOUR_SSID";
 const char* password = "YOUR_PASSWORD";
 
 //Relay Pin
-const int RELAY_PIN = 32;
+const int RELAY_PIN = 36;
 
 //PIR Sensor
-const int PIR_SENSOR_PIN = 16; 
+const int PIR_SENSOR_PIN = 6; 
 
 //Door Sensor
-const int DOOR_SENSOR_PIN = 18;
+const int DOOR_SENSOR_PIN = 7;
 
 //Websocket Properties
 AsyncWebServer server(80);
