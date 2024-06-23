@@ -2,51 +2,49 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 
-//WiFi Configuration
+// WiFi Configuration
 const char* ssid = "YOUR_SSID";
 const char* password = "YOUR_PASSWORD";
 
-//Relay Pin
+// Relay Pin
 const int RELAY_PIN = 36;
 
-//PIR Sensor
+// PIR Sensor
 const int PIR_SENSOR_PIN = 6; 
 
-//Door Sensor
+// Door Sensor
 const int DOOR_SENSOR_PIN = 7;
 
-//Websocket Properties
+// Websocket Properties
 AsyncWebServer server(80);
 AsyncWebSocket webSocket("/ws");
 
-//Relay Status
+// Relay Status
 int relayState = LOW;
 
-//PIR Status
+// PIR Status
 int pirState = LOW;
 
-//Door Status
+// Door Status
 int doorState = LOW;
 
-//Time Configurations for Sending Sensor Status
-int countTimeWas = millis();
+// Time Configurations for Sending Sensor Status
+unsigned long countTimeWas = millis();
 long countVal = 0;
 
-//Counter for people
+// Counter for people
 int count = 0;
 
-//Sensor Tracker
+// Sensor Tracker
 bool pirDetected = false;
 bool doorOpened = false;
 
-//Using the website or not
+// Using the website or not
 bool useWs = false;
 
 int counter = 0;
 
-
-
-//Websocket Handler
+// WebSocket Handler
 void handleWebSocketEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len){
   switch(type){
     case WS_EVT_DISCONNECT:
@@ -56,7 +54,7 @@ void handleWebSocketEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, 
       {
         IPAddress ip = client->remoteIP();
         Serial.printf("[%u] Connected from %d.%d.%d.%d\n", client->id(), ip[0], ip[1], ip[2], ip[3]);
-        String relayStatusUpdate = "{\"label\":\"relayStatus\",\"value\":\"" + String(relayState? "RELAY ON" : "RELAY OFF") + "\"}";
+        String relayStatusUpdate = "{\"label\":\"relayStatus\",\"value\":\"" + String(relayState ? "RELAY ON" : "RELAY OFF") + "\"}";
         client->text(relayStatusUpdate);
       }
       break;
@@ -65,30 +63,26 @@ void handleWebSocketEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, 
         AwsFrameInfo* info = (AwsFrameInfo*)arg;
         if(info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT){
           data[len] = '\0';
-          String payload = String ((char*)data);
+          String payload = String((char*)data);
 
           Serial.printf("[%u] Received: %s\n", client->id(), payload.c_str());
 
           if(payload == "toggle"){
             relayState = !relayState;
-            digitalWrite(RELAY_PIN, !relayState);
-
+            digitalWrite(RELAY_PIN, relayState);
             String relayUpdate = "{\"label\":\"relayStatus\",\"value\":\"" + String(relayState ? "RELAY ON" : "RELAY OFF") + "\"}";
-            counter ++;
+            counter++;
             Serial.println(counter);
             Serial.println(useWs);
-
             webSocket.textAll(relayUpdate);
           }
         }
       }
-
       break;
-
   }
 }
 
-//Root Handler
+// Root Handler
 void handleRoot(AsyncWebServerRequest* request){
   request->send(200, "text/html", R"HTML(
     <!DOCTYPE html>
@@ -97,23 +91,21 @@ void handleRoot(AsyncWebServerRequest* request){
         <meta name='viewport' content='width=device-width, initial-scale=1.0'>
         <title>Websocket ESP32</title>
       </head>
-
       <body>
         <h1>ESP32 Websocket Client</h1>
         <hr>
         <h2>Relay Information</h2>
         <button onclick='toggleRelay()'>Toggle Relay</button>
-        <p>Relay Status : <span id='relayStatus'></span></p>
+        <p>Relay Status: <span id='relayStatus'></span></p>
         <hr>
         <h2>Sensor Information</h2>
-        <p>Sensor PIR Status : <span id='pirData'></span></p>
-        <p>Sensor Door Status : <span id='doorData'></span></p>
+        <p>Sensor PIR Status: <span id='pirData'></span></p>
+        <p>Sensor Door Status: <span id='doorData'></span></p>
         <hr>
         <h2>People Inside</h2>
-        <p>Total People : <span id='peopleData'></span></p>
+        <p>Total People: <span id='peopleData'></span></p>
         <p><span id='message'></span></p>
         <br clear='all'>
-
         <script>
           var webSocket;
           connectWebSocket();
@@ -131,9 +123,9 @@ void handleRoot(AsyncWebServerRequest* request){
                 document.getElementById('relayStatus').innerHTML = data.value;
               } else if(data.label == 'pirData'){
                 document.getElementById('pirData').innerHTML = data.value;
-              } else if(data.label = 'doorData'){
+              } else if(data.label == 'doorData'){
                 document.getElementById('doorData').innerHTML = data.value;
-              } else if(data.label = 'peopleData'){
+              } else if(data.label == 'peopleData'){
                 document.getElementById('peopleData').innerHTML = data.value;
               }
             };
@@ -160,9 +152,8 @@ void handleRoot(AsyncWebServerRequest* request){
   )HTML");
 }
 
-
 void setup() {
-  // put your setup code here, to run once:
+  // Setup code to run once
   Serial.begin(115200);
 
   pinMode(RELAY_PIN, OUTPUT);
@@ -183,15 +174,13 @@ void setup() {
   Serial.println("Start to use WebSockets");
 
   server.on("/", HTTP_GET, handleRoot);
-
   server.addHandler(&webSocket);
   webSocket.onEvent(handleWebSocketEvent);
-
   server.begin();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  // Main code to run repeatedly
   pirState = digitalRead(PIR_SENSOR_PIN);
   doorState = digitalRead(DOOR_SENSOR_PIN);
 
@@ -209,7 +198,7 @@ void loop() {
     updateRelay();
     delay(1000); // Wait for 1 second to avoid multiple counts for the same motion
     // Wait until the door is closed again
-    while (doorState == LOW) {
+    while (digitalRead(DOOR_SENSOR_PIN) == LOW) {
       delay(100);
     }
     pirDetected = false; // Reset PIR sensor detection flag
@@ -219,12 +208,12 @@ void loop() {
   if (doorState == LOW && !pirDetected && !doorOpened) {
     doorOpened = true;
     // Wait until the door is closed
-    while (doorState == LOW) {
+    while (digitalRead(DOOR_SENSOR_PIN) == LOW) {
       delay(100);
     }
   }
 
-   // Check if PIR sensor detects motion before the door is opened
+  // Check if PIR sensor detects motion before the door is opened
   if (pirDetected && !doorOpened) {
     // If PIR sensor detects motion before the door is opened, increment count
     count++;
@@ -233,7 +222,7 @@ void loop() {
     pirDetected = false; // Reset PIR sensor detection flag
   }
 
-   // Check if door is closed after it has been opened
+  // Check if door is closed after it has been opened
   if (doorState == HIGH && doorOpened) {
     doorOpened = false;
     if (count > 0) {
@@ -242,14 +231,13 @@ void loop() {
     }
   }
 
-
   if(millis() - countTimeWas >= 1000){
     countTimeWas = millis();
 
     String doorUpdate = "{\"label\":\"doorData\",\"value\":" + String(doorState) + "}";
     String pirUpdate = "{\"label\":\"pirData\",\"value\":" + String(pirState) + "}";
-    String peopleUpdate = "{\"label\":\"peopleData\",\"value\":\"" + String(count) + "}";
-    
+    String peopleUpdate = "{\"label\":\"peopleData\",\"value\":\"" + String(count) + "\"}";
+
     webSocket.textAll(peopleUpdate);
     webSocket.textAll(doorUpdate);
     webSocket.textAll(pirUpdate);
@@ -257,11 +245,9 @@ void loop() {
 
   if(counter % 2 == 0){
     useWs = false;
-  } else{
+  } else {
     useWs = true;
   }
-
-
 }
 
 void updateRelay() {
@@ -283,9 +269,8 @@ void updateRelay() {
       webSocket.textAll(relayUpdate);
     }
   }
-  
+
   // Print the number of people inside
   Serial.print("People inside: ");
   Serial.println(count);
 }
-
